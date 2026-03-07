@@ -1,3 +1,28 @@
+-- ============================================================================
+-- QUERY 05: Marginal Impact Ranking — Which Lever Moves the Needle Most?
+-- ============================================================================
+-- PURPOSE:
+--   Across BOTH sensitivity tables (price-utilization and growth), compute
+--   how much each of the four business levers (price per minute, utilization
+--   rate, fleet growth rate, price growth rate) shifts FY Net Revenue and
+--   FY EBITDA Margin relative to the Base case. Ranks levers by average
+--   absolute sensitivity per unit of change to answer: "If I can only
+--   improve one thing, what should it be?"
+--
+-- WHY SQL (NOT EXCEL):
+--   The four levers live in two different sensitivity tables with different
+--   column structures. Comparing them requires: (a) anchoring each table to
+--   the same Base case values, (b) computing deltas along one axis while
+--   holding the other constant, (c) normalising to a per-unit basis so
+--   different scales (€/min vs % vs pp) are comparable, and (d) ranking
+--   across all four levers in a single result set. This is a UNION ALL
+--   across four CTEs followed by an aggregation and RANK — something that
+--   would require four separate Excel analyses manually stitched together.
+--
+-- TECHNIQUES: CTE-based modular extraction, UNION ALL across heterogeneous
+--             tables, AVG/MIN/MAX aggregation, RANK window function
+-- ============================================================================
+
 WITH base_anchors AS (
     -- Base case values (Price=€0.29, Util=65%, Fleet Growth=3%, Price Growth=1%)
     -- These are the centre points of both sensitivity grids
@@ -129,3 +154,46 @@ SELECT
     )                               AS Impact_Rank
 FROM lever_ranking
 ORDER BY Output, Impact_Rank;
+
+-- ============================================================================
+-- EXPECTED OUTPUT (8 rows: 4 levers × 2 outputs)
+-- ============================================================================
+--
+-- EBITDA MARGIN RANKING:
+-- +------+-----------------+---------------------+--------+
+-- | Rank | Lever           | Avg Sensitivity/Unit | Range  |
+-- +------+-----------------+---------------------+--------+
+-- |  1   | Price_Growth    | 1.8475 pp per 1pp   | ±1.9pp |
+-- |  2   | Price_Per_Min   | 1.1169 pp per €1    | -11/+7pp|
+-- |  3   | Util_Rate       | 0.1558 pp per 1pp   | ±2.9pp |
+-- |  4   | Fleet_Growth    | 0.0725 pp per 1pp   | ±0.2pp |
+-- +------+-----------------+---------------------+--------+
+--
+-- NET REVENUE RANKING:
+-- +------+-----------------+---------------------+-----------+
+-- | Rank | Lever           | Avg Sensitivity/Unit | Range     |
+-- +------+-----------------+---------------------+-----------+
+-- |  1   | Fleet_Growth    | €291M per 1pp       | -€8M/+€10M|
+-- |  2   | Price_Growth    | €258M per 1pp       | ±€2.5M   |
+-- |  3   | Price_Per_Min   | €151M per €1        | ±€12M    |
+-- |  4   | Util_Rate       | €77M per 1pp        | ±€11.6M  |
+-- +------+-----------------+---------------------+-----------+
+--
+-- Key findings:
+--   • THE RANKINGS FLIP. For margin, Price Growth is #1 and Fleet Growth
+--     is last. For revenue, Fleet Growth is #1 and Util Rate is last.
+--     This means the optimal strategy depends on whether the business is
+--     optimising for profitability or top-line growth.
+--
+--   • Price Growth is the strongest margin lever (1.85pp per 1pp change)
+--     because it compounds monthly — a 1pp higher monthly price growth
+--     rate accumulates across 12 months, amplifying its margin impact.
+--
+--   • Fleet Growth dominates revenue (€291M per 1pp) because more vehicles
+--     directly scale ride volume, but it barely moves margin (Rank #4)
+--     because the associated variable and fixed costs scale proportionally.
+--
+--   • Price Per Minute has the widest asymmetric range on margin (-11pp
+--     downside vs +7pp upside), indicating diminishing returns at higher
+--     price points — a pricing ceiling exists.
+-- ============================================================================
