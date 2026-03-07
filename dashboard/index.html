@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bolt Drive — FP&A Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0a0e17;--surface:#111827;--surface2:#1a2235;--surface3:#222d42;
+--border:#2a3550;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+--green:#34d399;--green2:#065f46;--red:#f87171;--red2:#7f1d1d;
+--blue:#60a5fa;--yellow:#fbbf24;--purple:#a78bfa;--orange:#fb923c;
+--cyan:#22d3ee;
+--base-color:#60a5fa;--high-color:#34d399;--low-color:#f87171;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+.dashboard{max-width:1440px;margin:0 auto;padding:20px}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:20px}
+.header-left{display:flex;align-items:center;gap:16px}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,#34d399,#60a5fa);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#0a0e17}
+.header h1{font-size:18px;font-weight:700;letter-spacing:-0.3px}
+.header h1 span{color:var(--text3);font-weight:400;font-size:13px;margin-left:8px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--surface2);padding:4px;border-radius:10px}
+.tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text3);transition:all .2s;border:none;background:none}
+.tab:hover{color:var(--text2)}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+
+/* Page container */
+.page{display:none}
+.page.active{display:block}
+
+/* Grid */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.span-2{grid-column:span 2}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* KPI Cards */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:6px}
+.kpi-value{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.5px}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace}
+.kpi-delta{display:inline-block;font-size:11px;padding:2px 6px;border-radius:4px;margin-top:6px;font-family:'JetBrains Mono',monospace}
+.kpi-delta.pos{background:var(--green2);color:var(--green)}
+.kpi-delta.neg{background:var(--red2);color:var(--red)}
+
+/* Scenario badges */
+.scenario-legend{display:flex;gap:16px;align-items:center;margin-bottom:12px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:3px}
+
+/* Chart container */
+.chart-wrap{position:relative;height:260px}
+.chart-wrap.tall{height:320px}
+
+/* Heatmap */
+.heatmap-grid{display:grid;gap:2px}
+.heatmap-cell{padding:8px 4px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;border-radius:4px;transition:transform .15s;cursor:default}
+.heatmap-cell:hover{transform:scale(1.08);z-index:1}
+.heatmap-header{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:6px 4px;text-align:center}
+.heatmap-row-header{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);padding:8px 6px;text-align:right}
+
+/* Bar ranking */
+.rank-bar-wrap{margin-bottom:10px}
+.rank-label{font-size:11px;color:var(--text2);margin-bottom:4px;display:flex;justify-content:space-between}
+.rank-bar-bg{height:22px;background:var(--surface3);border-radius:4px;overflow:hidden}
+.rank-bar{height:100%;border-radius:4px;transition:width .6s ease}
+
+/* Gauge */
+.gauge-row{display:flex;gap:16px;justify-content:center;margin-top:8px}
+.gauge-item{text-align:center;flex:1}
+.gauge-label{font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:500}
+.gauge-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;letter-spacing:-1px}
+.gauge-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.gauge-bar{height:6px;background:var(--surface3);border-radius:3px;margin-top:8px;overflow:hidden}
+.gauge-fill{height:100%;border-radius:3px;transition:width .8s ease}
+
+/* Insight box */
+.insight{background:var(--surface2);border-left:3px solid var(--yellow);padding:12px 16px;border-radius:0 8px 8px 0;margin-top:12px;font-size:12px;color:var(--text2);line-height:1.6}
+.insight strong{color:var(--yellow);font-weight:600}
+
+/* Section title */
+.section-title{font-size:13px;font-weight:600;color:var(--text2);margin:20px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+
+@media(max-width:1024px){
+.kpi-row{grid-template-columns:repeat(3,1fr)}
+.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+.span-2{grid-column:span 1}
+}
+</style>
+</head>
+<body>
+<div class="dashboard">
+<div class="header">
+<div class="header-left">
+<div class="logo">BD</div>
+<h1>Bolt Drive — FP&A Analytics Dashboard<span>Multi-Scenario Analysis</span></h1>
+</div>
+<div class="tabs">
+<div class="tab active" onclick="showPage(0)">Scenario Command Centre</div>
+<div class="tab" onclick="showPage(1)">Unit Economics & Costs</div>
+<div class="tab" onclick="showPage(2)">Sensitivity & Levers</div>
+</div>
+</div>
+
+<!-- ======================== PAGE 1 ======================== -->
+<div class="page active" id="page0">
+<div class="scenario-legend">
+<div class="legend-item"><div class="legend-dot" style="background:var(--low-color)"></div>Low</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--base-color)"></div>Base</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--high-color)"></div>High</div>
+<div class="legend-item" style="margin-left:auto;font-size:11px;color:var(--text3)">Probability-weighted: 25% / 50% / 25%</div>
+</div>
+<div class="kpi-row" id="kpi-row-1"></div>
+<div class="grid-2">
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>EBITDA Trajectory — Scenario Divergence</div><div class="chart-wrap tall"><canvas id="chart-ebitda-line"></canvas></div></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--purple)"></span>Cumulative EBITDA vs Fixed Cost Target</div><div class="chart-wrap tall"><canvas id="chart-cumulative"></canvas></div></div>
+</div>
+<div class="grid-3">
+<div class="card" id="gauge-mos-card"><div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Margin of Safety — Month 12</div><div class="gauge-row" id="gauge-mos"></div></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--cyan)"></span>EBITDA Margin % Trajectory</div><div class="chart-wrap"><canvas id="chart-margin-line"></canvas></div></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--orange)"></span>Scenario Spread (High - Low)</div><div class="chart-wrap"><canvas id="chart-spread"></canvas></div></div>
+</div>
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Key Insight</div>
+<div class="insight"><strong>Amplification Cascade:</strong> Input assumptions vary by 1.5-2× between scenarios, but EBITDA outcomes diverge by 80× in Month 1 and 350× at FY level. The Low scenario's EBITDA turns negative at Month 5.42 (interpolated), while Base achieves fixed cost payback in Month 1.78 and High in Month 0.59. The probability-weighted expected EBITDA exceeds the Base case by 45-85%, indicating the Base case is conservative relative to the full outcome distribution.</div>
+</div>
+</div>
+
+<!-- ======================== PAGE 2 ======================== -->
+<div class="page" id="page1">
+<div class="scenario-legend">
+<div class="legend-item"><div class="legend-dot" style="background:var(--low-color)"></div>Low</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--base-color)"></div>Base</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--high-color)"></div>High</div>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--green)"></span>Unit Economics — Revenue vs Variable Cost per Ride</div><div class="chart-wrap tall"><canvas id="chart-unit-econ"></canvas></div>
+<div class="insight"><strong>Low scenario alert:</strong> Variable cost per ride (€3.02) is converging toward revenue per ride (€3.42) by Month 12. The gap of €0.40 is closing fast — unit-level breakeven is only months away.</div></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--red)"></span>Cost vs Revenue Growth Rate — Overtake Detection</div><div class="chart-wrap tall"><canvas id="chart-overtake"></canvas></div>
+<div class="insight"><strong>Persistent cost overtake in Base:</strong> Costs grow at ~4.49% MoM vs revenue at ~3.89% MoM — margin is compressing slowly even in the profitable scenario. Only High has revenue outpacing costs.</div></div>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--purple)"></span>Revenue Growth Decomposition — Base Scenario</div><div class="chart-wrap tall"><canvas id="chart-decomp"></canvas></div></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--orange)"></span>Operating Leverage (DOL) Trajectory</div><div class="chart-wrap tall"><canvas id="chart-dol"></canvas></div>
+<div class="insight"><strong>Low scenario DOL explosion:</strong> Degree of operating leverage rockets from 3.2× to 24.8× as EBITDA approaches zero, then flips negative. Near breakeven, tiny revenue changes cause massive EBITDA swings.</div></div>
+</div>
+</div>
+
+<!-- ======================== PAGE 3 ======================== -->
+<div class="page" id="page2">
+<div class="grid-2">
+<div class="card span-2"><div class="card-title"><span class="dot" style="background:var(--yellow)"></span>EBITDA Margin Sensitivity — Price per Minute vs Utilization Rate</div>
+<div id="heatmap-container"></div></div>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--green)"></span>Marginal Impact Ranking — EBITDA Margin</div><div id="rank-margin"></div>
+<div class="insight"><strong>Rankings flip:</strong> Price Growth is the #1 margin lever, but Fleet Growth is #1 for revenue. The optimal strategy depends on whether you're optimising for profitability or top-line growth.</div></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Marginal Impact Ranking — FY Net Revenue</div><div id="rank-revenue"></div></div>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--cyan)"></span>Growth Interaction Effect — Revenue Synergy (€)</div><div class="chart-wrap tall"><canvas id="chart-interaction"></canvas></div>
+<div class="insight"><strong>Compounding synergy:</strong> Fleet growth + price growth together generate up to €2.4M more revenue than pursuing each independently. The interaction effect is not noise — it is real compounding value.</div></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--purple)"></span>Payback Timeline — Cumulative EBITDA vs FY Fixed Costs</div><div class="chart-wrap tall"><canvas id="chart-payback"></canvas></div>
+<div class="insight"><strong>Payback gap:</strong> High recovers annual fixed costs in ~18 days, Base in ~24 days, and Low never recovers them. By Month 12, Low's cumulative EBITDA is -€394K.</div></div>
+</div>
+</div>
+</div>
+
+<script>
+// ======================== DATA ========================
+const DATA={"monthly":[{"Scenario":"Base","Month":1,"Contribution Margin":2336737.73,"Contribution Margin %":0.696345,"EBITDA":2089237.73,"EBITDA Margin %":0.62259,"Fleet Size (vehicles)":500.0,"Platform Overhead":25000.0,"Revenue (Net)":3355719.55,"Total Fixed Costs":247500.0,"Total Rides":478636.0,"Variable Costs":1018981.82,"Vehicle Fixed Costs (Total)":222500.0},{"Scenario":"Base","Month":2,"Contribution Margin":2420977.04,"Contribution Margin %":0.694432,"EBITDA":2162989.42,"EBITDA Margin %":0.620431,"Fleet Size (vehicles)":515.0,"Platform Overhead":25375.0,"Revenue (Net)":3486271.59,"Total Fixed Costs":257987.62,"Total Rides":492995.0,"Variable Costs":1065294.54,"Vehicle Fixed Costs (Total)":232612.62},{"Scenario":"Base","Month":3,"Contribution Margin":2508232.19,"Contribution Margin %":0.69251,"EBITDA":2239291.7,"EBITDA Margin %":0.618257,"Fleet Size (vehicles)":530.45,"Platform Overhead":25755.62,"Revenue (Net)":3621944.37,"Total Fixed Costs":268940.49,"Total Rides":507785.0,"Variable Costs":1113712.18,"Vehicle Fixed Costs (Total)":243184.87},{"Scenario":"Base","Month":4,"Contribution Margin":2598609.65,"Contribution Margin %":0.69058,"EBITDA":2318230.07,"EBITDA Margin %":0.616069,"Fleet Size (vehicles)":546.36,"Platform Overhead":26141.96,"Revenue (Net)":3762940.05,"Total Fixed Costs":280379.58,"Total Rides":523019.0,"Variable Costs":1164330.4,"Vehicle Fixed Costs (Total)":254237.62},{"Scenario":"Base","Month":5,"Contribution Margin":2692219.58,"Contribution Margin %":0.688641,"EBITDA":2399892.77,"EBITDA Margin %":0.613867,"Fleet Size (vehicles)":562.75,"Platform Overhead":26534.09,"Revenue (Net)":3909468.79,"Total Fixed Costs":292326.81,"Total Rides":538709.0,"Variable Costs":1217249.21,"Vehicle Fixed Costs (Total)":265792.72},{"Scenario":"Base","Month":6,"Contribution Margin":2789175.92,"Contribution Margin %":0.686693,"EBITDA":2484370.82,"EBITDA Margin %":0.61165,"Fleet Size (vehicles)":579.64,"Platform Overhead":26932.1,"Revenue (Net)":4061749.11,"Total Fixed Costs":304805.1,"Total Rides":554871.0,"Variable Costs":1272573.19,"Vehicle Fixed Costs (Total)":277873.0},{"Scenario":"Base","Month":7,"Contribution Margin":2889596.55,"Contribution Margin %":0.684737,"EBITDA":2571758.14,"EBITDA Margin %":0.60942,"Fleet Size (vehicles)":597.03,"Platform Overhead":27336.08,"Revenue (Net)":4220008.19,"Total Fixed Costs":317838.41,"Total Rides":571517.0,"Variable Costs":1330411.64,"Vehicle Fixed Costs (Total)":290502.33},{"Scenario":"Base","Month":8,"Contribution Margin":2993603.38,"Contribution Margin %":0.682772,"EBITDA":2662151.6,"EBITDA Margin %":0.607176,"Fleet Size (vehicles)":614.94,"Platform Overhead":27746.12,"Revenue (Net)":4384482.23,"Total Fixed Costs":331451.78,"Total Rides":588662.0,"Variable Costs":1390878.85,"Vehicle Fixed Costs (Total)":303705.66},{"Scenario":"Base","Month":9,"Contribution Margin":3101322.51,"Contribution Margin %":0.680799,"EBITDA":2755651.11,"EBITDA Margin %":0.604917,"Fleet Size (vehicles)":633.39,"Platform Overhead":28162.31,"Revenue (Net)":4555416.8,"Total Fixed Costs":345671.4,"Total Rides":606322.0,"Variable Costs":1454094.3,"Vehicle Fixed Costs (Total)":317509.08},{"Scenario":"Base","Month":10,"Contribution Margin":3212884.36,"Contribution Margin %":0.678817,"EBITDA":2852359.74,"EBITDA Margin %":0.602645,"Fleet Size (vehicles)":652.39,"Platform Overhead":28584.75,"Revenue (Net)":4733067.24,"Total Fixed Costs":360524.62,"Total Rides":624512.0,"Variable Costs":1520182.88,"Vehicle Fixed Costs (Total)":331939.87},{"Scenario":"Base","Month":11,"Contribution Margin":3328423.81,"Contribution Margin %":0.676825,"EBITDA":2952383.75,"EBITDA Margin %":0.600359,"Fleet Size (vehicles)":671.96,"Platform Overhead":29013.52,"Revenue (Net)":4917699.0,"Total Fixed Costs":376040.06,"Total Rides":643247.0,"Variable Costs":1589275.19,"Vehicle Fixed Costs (Total)":347026.54},{"Scenario":"Base","Month":12,"Contribution Margin":3448080.34,"Contribution Margin %":0.674826,"EBITDA":3055832.73,"EBITDA Margin %":0.598059,"Fleet Size (vehicles)":692.12,"Platform Overhead":29448.72,"Revenue (Net)":5109588.09,"Total Fixed Costs":392247.62,"Total Rides":662545.0,"Variable Costs":1661507.75,"Vehicle Fixed Costs (Total)":362798.89},{"Scenario":"High","Month":1,"Contribution Margin":8083364.8,"Contribution Margin %":0.820352,"EBITDA":7800864.8,"EBITDA Margin %":0.791682,"Fleet Size (vehicles)":700.0,"Platform Overhead":20000.0,"Revenue (Net)":9853536.0,"Total Fixed Costs":282500.0,"Total Rides":763840.0,"Variable Costs":1770171.2,"Vehicle Fixed Costs (Total)":262500.0},{"Scenario":"High","Month":2,"Contribution Margin":8655526.9,"Contribution Margin %":0.822059,"EBITDA":8357536.9,"EBITDA Margin %":0.793758,"Fleet Size (vehicles)":735.0,"Platform Overhead":20160.0,"Revenue (Net)":10529076.1,"Total Fixed Costs":297990.0,"Total Rides":802032.0,"Variable Costs":1873549.2,"Vehicle Fixed Costs (Total)":277830.0},{"Scenario":"High","Month":3,"Contribution Margin":9268412.02,"Contribution Margin %":0.823758,"EBITDA":8954035.47,"EBITDA Margin %":0.795817,"Fleet Size (vehicles)":771.75,"Platform Overhead":20321.28,"Revenue (Net)":11251376.49,"Total Fixed Costs":314376.55,"Total Rides":842134.0,"Variable Costs":1982964.47,"Vehicle Fixed Costs (Total)":294055.27},{"Scenario":"High","Month":4,"Contribution Margin":9924927.42,"Contribution Margin %":0.825447,"EBITDA":9593215.47,"EBITDA Margin %":0.797859,"Fleet Size (vehicles)":810.34,"Platform Overhead":20483.85,"Revenue (Net)":12023697.01,"Total Fixed Costs":331711.95,"Total Rides":884240.0,"Variable Costs":2098769.6,"Vehicle Fixed Costs (Total)":311228.1},{"Scenario":"High","Month":5,"Contribution Margin":10628188.19,"Contribution Margin %":0.827127,"EBITDA":10278136.65,"EBITDA Margin %":0.799885,"Fleet Size (vehicles)":850.85,"Platform Overhead":20647.72,"Revenue (Net)":12849525.93,"Total Fixed Costs":350051.54,"Total Rides":928452.0,"Variable Costs":2221337.74,"Vehicle Fixed Costs (Total)":329403.82},{"Scenario":"High","Month":6,"Contribution Margin":11381532.16,"Contribution Margin %":0.828797,"EBITDA":11012078.25,"EBITDA Margin %":0.801893,"Fleet Size (vehicles)":893.4,"Platform Overhead":20812.9,"Revenue (Net)":13732596.03,"Total Fixed Costs":369453.91,"Total Rides":974875.0,"Variable Costs":2351063.86,"Vehicle Fixed Costs (Total)":348641.0},{"Scenario":"High","Month":7,"Contribution Margin":12188535.79,"Contribution Margin %":0.830457,"EBITDA":11798554.75,"EBITDA Margin %":0.803886,"Fleet Size (vehicles)":938.07,"Platform Overhead":20979.41,"Revenue (Net)":14676901.78,"Total Fixed Costs":389981.04,"Total Rides":1023619.0,"Variable Costs":2488365.99,"Vehicle Fixed Costs (Total)":369001.64},{"Scenario":"High","Month":8,"Contribution Margin":13053031.26,"Contribution Margin %":0.832107,"EBITDA":12641332.68,"EBITDA Margin %":0.805862,"Fleet Size (vehicles)":984.97,"Platform Overhead":21147.24,"Revenue (Net)":15686717.82,"Total Fixed Costs":411698.58,"Total Rides":1074800.0,"Variable Costs":2633686.57,"Vehicle Fixed Costs (Total)":390551.33},{"Scenario":"High","Month":9,"Contribution Margin":13979124.74,"Contribution Margin %":0.833747,"EBITDA":13544448.79,"EBITDA Margin %":0.807822,"Fleet Size (vehicles)":1034.22,"Platform Overhead":21316.42,"Revenue (Net)":16766618.6,"Total Fixed Costs":434675.95,"Total Rides":1128540.0,"Variable Costs":2787493.86,"Vehicle Fixed Costs (Total)":413359.53},{"Scenario":"High","Month":10,"Contribution Margin":14971216.02,"Contribution Margin %":0.835377,"EBITDA":14512229.34,"EBITDA Margin %":0.809766,"Fleet Size (vehicles)":1085.93,"Platform Overhead":21486.95,"Revenue (Net)":17921499.53,"Total Fixed Costs":458986.68,"Total Rides":1184967.0,"Variable Costs":2950283.51,"Vehicle Fixed Costs (Total)":437499.73},{"Scenario":"High","Month":11,"Contribution Margin":16034019.48,"Contribution Margin %":0.836997,"EBITDA":15549310.92,"EBITDA Margin %":0.811695,"Fleet Size (vehicles)":1140.23,"Platform Overhead":21658.85,"Revenue (Net)":19156599.55,"Total Fixed Costs":484708.56,"Total Rides":1244215.0,"Variable Costs":3122580.06,"Vehicle Fixed Costs (Total)":463049.71},{"Scenario":"High","Month":12,"Contribution Margin":17172586.61,"Contribution Margin %":0.838607,"EBITDA":16660662.67,"EBITDA Margin %":0.813607,"Fleet Size (vehicles)":1197.24,"Platform Overhead":21832.12,"Revenue (Net)":20477525.35,"Total Fixed Costs":511923.93,"Total Rides":1306426.0,"Variable Costs":3304938.74,"Vehicle Fixed Costs (Total)":490091.82},{"Scenario":"Low","Month":1,"Contribution Margin":306124.0,"Contribution Margin %":0.326202,"EBITDA":95874.0,"EBITDA Margin %":0.102162,"Fleet Size (vehicles)":350.0,"Platform Overhead":30000.0,"Revenue (Net)":938448.0,"Total Fixed Costs":210250.0,"Total Rides":274400.0,"Variable Costs":632324.0,"Vehicle Fixed Costs (Total)":180250.0},{"Scenario":"Low","Month":2,"Contribution Margin":293219.06,"Contribution Margin %":0.309357,"EBITDA":75865.25,"EBITDA Margin %":0.080041,"Fleet Size (vehicles)":353.5,"Platform Overhead":30750.0,"Revenue (Net)":947832.48,"Total Fixed Costs":217353.81,"Total Rides":277144.0,"Variable Costs":654613.42,"Vehicle Fixed Costs (Total)":186603.81},{"Scenario":"Low","Month":3,"Contribution Margin":279622.26,"Contribution Margin %":0.292091,"EBITDA":54921.91,"EBITDA Margin %":0.057371,"Fleet Size (vehicles)":357.04,"Platform Overhead":31518.75,"Revenue (Net)":957310.8,"Total Fixed Costs":224700.35,"Total Rides":279915.0,"Variable Costs":677688.54,"Vehicle Fixed Costs (Total)":193181.6},{"Scenario":"Low","Month":4,"Contribution Margin":265306.85,"Contribution Margin %":0.274394,"EBITDA":33008.88,"EBITDA Margin %":0.034139,"Fleet Size (vehicles)":360.61,"Platform Overhead":32306.72,"Revenue (Net)":966883.91,"Total Fixed Costs":232297.97,"Total Rides":282715.0,"Variable Costs":701577.07,"Vehicle Fixed Costs (Total)":199991.25},{"Scenario":"Low","Month":5,"Contribution Margin":250245.1,"Contribution Margin %":0.256254,"EBITDA":10089.77,"EBITDA Margin %":0.010332,"Fleet Size (vehicles)":364.21,"Platform Overhead":33114.39,"Revenue (Net)":976552.75,"Total Fixed Costs":240155.33,"Total Rides":285542.0,"Variable Costs":726307.66,"Vehicle Fixed Costs (Total)":207040.94},{"Scenario":"Low","Month":6,"Contribution Margin":234408.28,"Contribution Margin %":0.23766,"EBITDA":-13873.1,"EBITDA Margin %":-0.014066,"Fleet Size (vehicles)":367.85,"Platform Overhead":33942.25,"Revenue (Net)":986318.28,"Total Fixed Costs":248281.38,"Total Rides":288397.0,"Variable Costs":751910.0,"Vehicle Fixed Costs (Total)":214339.13},{"Scenario":"Low","Month":7,"Contribution Margin":217766.63,"Contribution Margin %":0.218601,"EBITDA":-38918.76,"EBITDA Margin %":-0.039068,"Fleet Size (vehicles)":371.53,"Platform Overhead":34790.8,"Revenue (Net)":996181.46,"Total Fixed Costs":256685.39,"Total Rides":291281.0,"Variable Costs":778414.83,"Vehicle Fixed Costs (Total)":221894.59},{"Scenario":"Low","Month":8,"Contribution Margin":200289.32,"Contribution Margin %":0.199066,"EBITDA":-65087.62,"EBITDA Margin %":-0.06469,"Fleet Size (vehicles)":375.25,"Platform Overhead":35660.57,"Revenue (Net)":1006143.28,"Total Fixed Costs":265376.94,"Total Rides":294194.0,"Variable Costs":805853.95,"Vehicle Fixed Costs (Total)":229716.37},{"Scenario":"Low","Month":9,"Contribution Margin":181944.41,"Contribution Margin %":0.179043,"EBITDA":-92421.55,"EBITDA Margin %":-0.090948,"Fleet Size (vehicles)":379.0,"Platform Overhead":36552.09,"Revenue (Net)":1016204.71,"Total Fixed Costs":274365.96,"Total Rides":297136.0,"Variable Costs":834260.3,"Vehicle Fixed Costs (Total)":237813.87},{"Scenario":"Low","Month":10,"Contribution Margin":162698.78,"Contribution Margin %":0.158519,"EBITDA":-120963.92,"EBITDA Margin %":-0.117856,"Fleet Size (vehicles)":382.79,"Platform Overhead":37465.89,"Revenue (Net)":1026366.76,"Total Fixed Costs":283662.7,"Total Rides":300107.0,"Variable Costs":863667.98,"Vehicle Fixed Costs (Total)":246196.81},{"Scenario":"Low","Month":11,"Contribution Margin":142518.15,"Contribution Margin %":0.137482,"EBITDA":-150759.64,"EBITDA Margin %":-0.145432,"Fleet Size (vehicles)":386.62,"Platform Overhead":38402.54,"Revenue (Net)":1036630.42,"Total Fixed Costs":293277.79,"Total Rides":303108.0,"Variable Costs":894112.28,"Vehicle Fixed Costs (Total)":254875.25},{"Scenario":"Low","Month":12,"Contribution Margin":121367.0,"Contribution Margin %":0.115919,"EBITDA":-181855.21,"EBITDA Margin %":-0.173692,"Fleet Size (vehicles)":390.48,"Platform Overhead":39362.6,"Revenue (Net)":1046996.73,"Total Fixed Costs":303222.2,"Total Rides":306139.0,"Variable Costs":925629.73,"Vehicle Fixed Costs (Total)":263859.6}],"fy_totals":[{"Scenario":"Base","Total Rides":6792820.0,"Revenue (Net)":50118355.01,"Variable Costs":15798491.95,"Contribution Margin":34319863.06,"Vehicle Fixed Costs (Total)":3449683.2,"Platform Overhead":326030.27,"Total Fixed Costs":3775713.49,"EBITDA":30544149.58,"Fleet Size (vehicles)":692.12,"Contribution Margin %":0.685665,"EBITDA Margin %":0.610453},{"Scenario":"Low","Total Rides":3480078.0,"Revenue (Net)":11901869.58,"Variable Costs":9246359.76,"Contribution Margin":2655509.84,"Vehicle Fixed Costs (Total)":2635763.22,"Platform Overhead":413866.6,"Total Fixed Costs":3049629.82,"EBITDA":-394119.99,"Fleet Size (vehicles)":390.48,"Contribution Margin %":0.225382,"EBITDA Margin %":-0.030142},{"Scenario":"High","Total Rides":12158140.0,"Revenue (Net)":174925670.19,"Variable Costs":29585204.8,"Contribution Margin":145340465.39,"Vehicle Fixed Costs (Total)":4387211.95,"Platform Overhead":250846.74,"Total Fixed Costs":4638058.69,"EBITDA":140702406.69,"Fleet Size (vehicles)":1197.24,"Contribution Margin %":0.829569,"EBITDA Margin %":0.802794}],"assumptions":[{"Section":"Fleet & Utilization","Driver":"Total Fleet Size","Unit":"vehicles","Base":"500","Low":"350","High":"700"},{"Section":"Fleet & Utilization","Driver":"Utilization Rate","Unit":"%","Base":"0.65","Low":"0.5","High":"0.8"},{"Section":"Fleet & Utilization","Driver":"Operating Hours per Day","Unit":"hours/day","Base":"18","Low":"14","High":"22"},{"Section":"Fleet & Utilization","Driver":"Average Ride Duration","Unit":"minutes","Base":"22","Low":"15","High":"30"},{"Section":"Fleet & Utilization","Driver":"Operating Days per Month","Unit":"days/month","Base":"30","Low":"28","High":"31"},{"Section":"Pricing","Driver":"Price per Minute","Unit":"\u20ac per minute","Base":"0.29","Low":"0.22","High":"0.38"},{"Section":"Pricing","Driver":"Unlock Fee per Ride","Unit":"\u20ac per ride","Base":"1","Low":"0.5","High":"1.5"},{"Section":"Pricing","Driver":"Average Discount Rate","Unit":"%","Base":"0.05","Low":"0.1","High":"0"},{"Section":"Variable Costs","Driver":"Maintenance Cost per Ride","Unit":"\u20ac per ride","Base":"0.85","Low":"1.1","High":"0.65"},{"Section":"Variable Costs","Driver":"Cleaning Cost per Ride","Unit":"\u20ac per ride","Base":"0.35","Low":"0.5","High":"0.25"},{"Section":"Variable Costs","Driver":"Parking Cost per Vehicle per Month","Unit":"\u20ac per vehicle/month","Base":"120","Low":"160","High":"90"},{"Section":"Variable Costs","Driver":"Logistics Cost per Vehicle per Month","Unit":"\u20ac per vehicle/month","Base":"80","Low":"110","High":"60"},{"Section":"Variable Costs","Driver":"Average Distance per Ride","Unit":"km/ride","Base":"6","Low":"4","High":"8"},{"Section":"Variable Costs","Driver":"Energy Cost per km","Unit":"\u20ac/km","Base":"0.12","Low":"0.09","High":"0.16"},{"Section":"Fixed Costs","Driver":"Insurance Cost per Vehicle per Month","Unit":"\u20ac per vehicle/month","Base":"95","Low":"115","High":"75"},{"Section":"Fixed Costs","Driver":"Depreciation per Vehicle per Month","Unit":"\u20ac per vehicle/month","Base":"350","Low":"400","High":"300"},{"Section":"Fixed Costs","Driver":"Platform Overhead Allocation per Month","Unit":"\u20ac per month","Base":"25000","Low":"30000","High":"20000"},{"Section":"Growth Drivers","Driver":"Monthly Fleet Growth Rate","Unit":"%","Base":"0.03","Low":"0.01","High":"0.05"},{"Section":"Growth Drivers","Driver":"Monthly Price Growth Rate","Unit":"%","Base":"0.01","Low":"0","High":"0.02"},{"Section":"Growth Drivers","Driver":"Monthly Cost Inflation Rate","Unit":"%","Base":"0.015","Low":"0.025","High":"0.008"}],"sens_price_util":[{"Output":"FY_Net_Revenue","Price":0.21,"Util":0.5,"Value":29286761.0},{"Output":"FY_EBITDA_Margin","Price":0.21,"Util":0.5,"Value":0.49},{"Output":"FY_Net_Revenue","Price":0.21,"Util":0.575,"Value":33679775.0},{"Output":"FY_EBITDA_Margin","Price":0.21,"Util":0.575,"Value":0.5119},{"Output":"FY_Net_Revenue","Price":0.21,"Util":0.65,"Value":38072790.0},{"Output":"FY_EBITDA_Margin","Price":0.21,"Util":0.65,"Value":0.5287},{"Output":"FY_Net_Revenue","Price":0.21,"Util":0.725,"Value":42465804.0},{"Output":"FY_EBITDA_Margin","Price":0.21,"Util":0.725,"Value":0.542},{"Output":"FY_Net_Revenue","Price":0.21,"Util":0.8,"Value":46858818.0},{"Output":"FY_EBITDA_Margin","Price":0.21,"Util":0.8,"Value":0.5528},{"Output":"FY_Net_Revenue","Price":0.25,"Util":0.5,"Value":33919671.0},{"Output":"FY_EBITDA_Margin","Price":0.25,"Util":0.5,"Value":0.5597},{"Output":"FY_Net_Revenue","Price":0.25,"Util":0.575,"Value":39007622.0},{"Output":"FY_EBITDA_Margin","Price":0.25,"Util":0.575,"Value":0.5785},{"Output":"FY_Net_Revenue","Price":0.25,"Util":0.65,"Value":44095572.0},{"Output":"FY_EBITDA_Margin","Price":0.25,"Util":0.65,"Value":0.593},{"Output":"FY_Net_Revenue","Price":0.25,"Util":0.725,"Value":49183523.0},{"Output":"FY_EBITDA_Margin","Price":0.25,"Util":0.725,"Value":0.6045},{"Output":"FY_Net_Revenue","Price":0.25,"Util":0.8,"Value":54271474.0},{"Output":"FY_EBITDA_Margin","Price":0.25,"Util":0.8,"Value":0.6139},{"Output":"FY_Net_Revenue","Price":0.29,"Util":0.5,"Value":38552581.0},{"Output":"FY_EBITDA_Margin","Price":0.29,"Util":0.5,"Value":0.6126},{"Output":"FY_Net_Revenue","Price":0.29,"Util":0.575,"Value":44335468.0},{"Output":"FY_EBITDA_Margin","Price":0.29,"Util":0.575,"Value":0.6292},{"Output":"FY_Net_Revenue","Price":0.29,"Util":0.65,"Value":50118355.0},{"Output":"FY_EBITDA_Margin","Price":0.29,"Util":0.65,"Value":0.6419},{"Output":"FY_Net_Revenue","Price":0.29,"Util":0.725,"Value":55901242.0},{"Output":"FY_EBITDA_Margin","Price":0.29,"Util":0.725,"Value":0.6521},{"Output":"FY_Net_Revenue","Price":0.29,"Util":0.8,"Value":61684129.0},{"Output":"FY_EBITDA_Margin","Price":0.29,"Util":0.8,"Value":0.6603},{"Output":"FY_Net_Revenue","Price":0.33,"Util":0.5,"Value":43185491.0},{"Output":"FY_EBITDA_Margin","Price":0.33,"Util":0.5,"Value":0.6542},{"Output":"FY_Net_Revenue","Price":0.33,"Util":0.575,"Value":49663314.0},{"Output":"FY_EBITDA_Margin","Price":0.33,"Util":0.575,"Value":0.669},{"Output":"FY_Net_Revenue","Price":0.33,"Util":0.65,"Value":56141138.0},{"Output":"FY_EBITDA_Margin","Price":0.33,"Util":0.65,"Value":0.6804},{"Output":"FY_Net_Revenue","Price":0.33,"Util":0.725,"Value":62618961.0},{"Output":"FY_EBITDA_Margin","Price":0.33,"Util":0.725,"Value":0.6894},{"Output":"FY_Net_Revenue","Price":0.33,"Util":0.8,"Value":69096785.0},{"Output":"FY_EBITDA_Margin","Price":0.33,"Util":0.8,"Value":0.6967},{"Output":"FY_Net_Revenue","Price":0.37,"Util":0.5,"Value":47818400.0},{"Output":"FY_EBITDA_Margin","Price":0.37,"Util":0.5,"Value":0.6877},{"Output":"FY_Net_Revenue","Price":0.37,"Util":0.575,"Value":54991160.0},{"Output":"FY_EBITDA_Margin","Price":0.37,"Util":0.575,"Value":0.701},{"Output":"FY_Net_Revenue","Price":0.37,"Util":0.65,"Value":62163920.0},{"Output":"FY_EBITDA_Margin","Price":0.37,"Util":0.65,"Value":0.7113},{"Output":"FY_Net_Revenue","Price":0.37,"Util":0.725,"Value":69336680.0},{"Output":"FY_EBITDA_Margin","Price":0.37,"Util":0.725,"Value":0.7195},{"Output":"FY_Net_Revenue","Price":0.37,"Util":0.8,"Value":76509441.0},{"Output":"FY_EBITDA_Margin","Price":0.37,"Util":0.8,"Value":0.7261}],"sens_growth":[{"Output":"FY_Net_Revenue","Fleet":0.0,"PriceGr":0.0,"Value":40268635.0},{"Output":"FY_EBITDA_Margin","Fleet":0.0,"PriceGr":0.0,"Value":0.6219},{"Output":"FY_Net_Revenue","Fleet":0.0,"PriceGr":0.005,"Value":41242106.0},{"Output":"FY_EBITDA_Margin","Fleet":0.0,"PriceGr":0.005,"Value":0.6309},{"Output":"FY_Net_Revenue","Fleet":0.0,"PriceGr":0.01,"Value":42248586.0},{"Output":"FY_EBITDA_Margin","Fleet":0.0,"PriceGr":0.01,"Value":0.6397},{"Output":"FY_Net_Revenue","Fleet":0.0,"PriceGr":0.015,"Value":43289205.0},{"Output":"FY_EBITDA_Margin","Fleet":0.0,"PriceGr":0.015,"Value":0.6483},{"Output":"FY_Net_Revenue","Fleet":0.0,"PriceGr":0.02,"Value":44365128.0},{"Output":"FY_EBITDA_Margin","Fleet":0.0,"PriceGr":0.02,"Value":0.6569},{"Output":"FY_Net_Revenue","Fleet":0.015,"PriceGr":0.0,"Value":43762648.0},{"Output":"FY_EBITDA_Margin","Fleet":0.015,"PriceGr":0.0,"Value":0.6226},{"Output":"FY_Net_Revenue","Fleet":0.015,"PriceGr":0.005,"Value":44854985.0},{"Output":"FY_EBITDA_Margin","Fleet":0.015,"PriceGr":0.005,"Value":0.6318},{"Output":"FY_Net_Revenue","Fleet":0.015,"PriceGr":0.01,"Value":45984954.0},{"Output":"FY_EBITDA_Margin","Fleet":0.015,"PriceGr":0.01,"Value":0.6408},{"Output":"FY_Net_Revenue","Fleet":0.015,"PriceGr":0.015,"Value":47153855.0},{"Output":"FY_EBITDA_Margin","Fleet":0.015,"PriceGr":0.015,"Value":0.6497},{"Output":"FY_Net_Revenue","Fleet":0.015,"PriceGr":0.02,"Value":48363031.0},{"Output":"FY_EBITDA_Margin","Fleet":0.015,"PriceGr":0.02,"Value":0.6585},{"Output":"FY_Net_Revenue","Fleet":0.03,"PriceGr":0.0,"Value":47624471.0},{"Output":"FY_EBITDA_Margin","Fleet":0.03,"PriceGr":0.0,"Value":0.6232},{"Output":"FY_Net_Revenue","Fleet":0.03,"PriceGr":0.005,"Value":48849983.0},{"Output":"FY_EBITDA_Margin","Fleet":0.03,"PriceGr":0.005,"Value":0.6326},{"Output":"FY_Net_Revenue","Fleet":0.03,"PriceGr":0.01,"Value":50118355.0},{"Output":"FY_EBITDA_Margin","Fleet":0.03,"PriceGr":0.01,"Value":0.6419},{"Output":"FY_Net_Revenue","Fleet":0.03,"PriceGr":0.015,"Value":51431080.0},{"Output":"FY_EBITDA_Margin","Fleet":0.03,"PriceGr":0.015,"Value":0.6511},{"Output":"FY_Net_Revenue","Fleet":0.03,"PriceGr":0.02,"Value":52789702.0},{"Output":"FY_EBITDA_Margin","Fleet":0.03,"PriceGr":0.02,"Value":0.6601},{"Output":"FY_Net_Revenue","Fleet":0.045,"PriceGr":0.0,"Value":51892954.0},{"Output":"FY_EBITDA_Margin","Fleet":0.045,"PriceGr":0.0,"Value":0.6238},{"Output":"FY_Net_Revenue","Fleet":0.045,"PriceGr":0.005,"Value":53267575.0},{"Output":"FY_EBITDA_Margin","Fleet":0.045,"PriceGr":0.005,"Value":0.6335},{"Output":"FY_Net_Revenue","Fleet":0.045,"PriceGr":0.01,"Value":54690960.0},{"Output":"FY_EBITDA_Margin","Fleet":0.045,"PriceGr":0.01,"Value":0.643},{"Output":"FY_Net_Revenue","Fleet":0.045,"PriceGr":0.015,"Value":56164822.0},{"Output":"FY_EBITDA_Margin","Fleet":0.045,"PriceGr":0.015,"Value":0.6524},{"Output":"FY_Net_Revenue","Fleet":0.045,"PriceGr":0.02,"Value":57690935.0},{"Output":"FY_EBITDA_Margin","Fleet":0.045,"PriceGr":0.02,"Value":0.6616},{"Output":"FY_Net_Revenue","Fleet":0.06,"PriceGr":0.0,"Value":56610791.0},{"Output":"FY_EBITDA_Margin","Fleet":0.06,"PriceGr":0.0,"Value":0.6243},{"Output":"FY_Net_Revenue","Fleet":0.06,"PriceGr":0.005,"Value":58152247.0},{"Output":"FY_EBITDA_Margin","Fleet":0.06,"PriceGr":0.005,"Value":0.6342},{"Output":"FY_Net_Revenue","Fleet":0.06,"PriceGr":0.01,"Value":59749127.0},{"Output":"FY_EBITDA_Margin","Fleet":0.06,"PriceGr":0.01,"Value":0.644},{"Output":"FY_Net_Revenue","Fleet":0.06,"PriceGr":0.015,"Value":61403395.0},{"Output":"FY_EBITDA_Margin","Fleet":0.06,"PriceGr":0.015,"Value":0.6536},{"Output":"FY_Net_Revenue","Fleet":0.06,"PriceGr":0.02,"Value":63117083.0},{"Output":"FY_EBITDA_Margin","Fleet":0.06,"PriceGr":0.02,"Value":0.663}]};
+
+// ======================== HELPERS ========================
+const scenarios = ['Low','Base','High'];
+const sColors = {Low:'#f87171',Base:'#60a5fa',High:'#34d399'};
+const months = [1,2,3,4,5,6,7,8,9,10,11,12];
+const monthLabels = months.map(m=>'M'+m);
+
+function getMonthly(scenario, month, metric) {
+    const r = DATA.monthly.find(d=>d.Scenario===scenario && d.Month===month);
+    return r ? r[metric] : 0;
+}
+function getScenarioSeries(scenario, metric) {
+    return months.map(m => getMonthly(scenario, m, metric));
+}
+function getFY(scenario, metric) {
+    const r = DATA.fy_totals.find(d=>d.Scenario===scenario);
+    return r ? r[metric] : 0;
+}
+function fmt(v,d=0){if(Math.abs(v)>=1e6)return '€'+(v/1e6).toFixed(1)+'M';if(Math.abs(v)>=1e3)return '€'+(v/1e3).toFixed(0)+'K';return '€'+v.toFixed(d)}
+function fmtPct(v){return (v*100).toFixed(1)+'%'}
+function fmtNum(v){return v.toLocaleString('en',{maximumFractionDigits:0})}
+
+const chartDefaults = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a2235',borderColor:'#2a3550',borderWidth:1,titleFont:{family:'DM Sans'},bodyFont:{family:'JetBrains Mono',size:11},padding:10,cornerRadius:8}},
+    scales:{x:{grid:{color:'#1a2235'},ticks:{color:'#64748b',font:{family:'DM Sans',size:11}}},y:{grid:{color:'#1a2235'},ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:10}}}}
+};
+function deepMerge(target,...sources){sources.forEach(s=>{for(let k in s){if(s[k]&&typeof s[k]==='object'&&!Array.isArray(s[k])){target[k]=target[k]||{};deepMerge(target[k],s[k])}else{target[k]=s[k]}}});return target}
+function cOpts(overrides={}){return deepMerge({},chartDefaults,overrides)}
+
+// ======================== PAGE NAVIGATION ========================
+function showPage(idx){
+    document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===idx));
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+}
+
+// ======================== PAGE 1: SCENARIO COMMAND CENTRE ========================
+function buildPage1(){
+    // KPI row: Expected EBITDA, Base EBITDA, FY Revenue spread, EBITDA Margin range, Payback
+    const weights = {Low:0.25,Base:0.50,High:0.25};
+    const fyEbitda = {};
+    const fyRev = {};
+    const fyMargin = {};
+    scenarios.forEach(s=>{
+        fyEbitda[s] = getFY(s,'EBITDA');
+        fyRev[s] = getFY(s,'Revenue (Net)');
+        fyMargin[s] = getFY(s,'EBITDA Margin %');
+    });
+    const expectedFYEbitda = scenarios.reduce((sum,s)=>sum+fyEbitda[s]*weights[s],0);
+    
+    const kpiHTML = [
+        {label:'Expected FY EBITDA',value:fmt(expectedFYEbitda),sub:'Probability-weighted',delta:'+'+((expectedFYEbitda/fyEbitda.Base-1)*100).toFixed(0)+'% vs Base',pos:true},
+        {label:'Base FY EBITDA',value:fmt(fyEbitda.Base),sub:'50% probability',delta:null},
+        {label:'FY Revenue Range',value:fmt(fyRev.Low)+' — '+fmt(fyRev.High),sub:'Low to High',delta:(fyRev.High/fyRev.Low).toFixed(1)+'× spread',pos:true},
+        {label:'EBITDA Margin Range',value:fmtPct(fyMargin.Low)+' — '+fmtPct(fyMargin.High),sub:'Low to High',delta:null},
+        {label:'Low Scenario Payback',value:'Never',sub:'Cumulative EBITDA peaks M5',delta:'-€394K FY',pos:false},
+    ].map(k=>`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div>${k.delta?`<div class="kpi-delta ${k.pos?'pos':'neg'}">${k.delta}</div>`:''}</div>`).join('');
+    document.getElementById('kpi-row-1').innerHTML = kpiHTML;
+
+    // EBITDA line chart
+    new Chart(document.getElementById('chart-ebitda-line'),{type:'line',data:{labels:monthLabels,datasets:[
+        ...scenarios.map(s=>({label:s,data:getScenarioSeries(s,'EBITDA'),borderColor:sColors[s],backgroundColor:sColors[s]+'20',borderWidth:s==='Base'?3:2,pointRadius:s==='Base'?4:2,tension:.3,fill:false})),
+        {label:'Zero Line',data:months.map(()=>0),borderColor:'#475569',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false}
+    ]},options:cOpts({plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{family:'DM Sans',size:11},usePointStyle:true,pointStyle:'rectRounded',padding:16}}},scales:{y:{ticks:{callback:v=>fmt(v)}}}})});
+
+    // Cumulative EBITDA chart
+    const cumData = {};
+    scenarios.forEach(s=>{
+        let cum = 0;
+        cumData[s] = months.map(m=>{cum += getMonthly(s,m,'EBITDA'); return cum;});
+    });
+    const fyFixed = {};
+    scenarios.forEach(s=>{fyFixed[s] = getFY(s,'Total Fixed Costs')});
+    new Chart(document.getElementById('chart-cumulative'),{type:'line',data:{labels:monthLabels,datasets:[
+        ...scenarios.map(s=>({label:s+' Cumulative',data:cumData[s],borderColor:sColors[s],borderWidth:s==='Base'?3:2,pointRadius:2,tension:.3,fill:false})),
+        {label:'Base Fixed Cost Target',data:months.map(()=>fyFixed.Base),borderColor:'#fbbf24',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},options:cOpts({plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{family:'DM Sans',size:11},usePointStyle:true,pointStyle:'rectRounded',padding:12}}},scales:{y:{ticks:{callback:v=>fmt(v)}}}})});
+
+    // Margin of Safety gauges
+    const mosData = scenarios.map(s=>{
+        const rev = getMonthly(s,12,'Revenue (Net)');
+        const cm = getMonthly(s,12,'Contribution Margin');
+        const fc = getMonthly(s,12,'Total Fixed Costs');
+        const cmPct = cm/rev;
+        const beRev = fc/cmPct;
+        const mosPct = ((rev-beRev)/rev)*100;
+        const multiple = rev/beRev;
+        return {scenario:s, mosPct, multiple};
+    });
+    document.getElementById('gauge-mos').innerHTML = mosData.map(d=>{
+        const barPct = Math.max(0,Math.min(100,d.mosPct));
+        const color = d.mosPct > 50 ? 'var(--green)' : d.mosPct > 0 ? 'var(--yellow)' : 'var(--red)';
+        return `<div class="gauge-item"><div class="gauge-label">${d.scenario}</div><div class="gauge-value" style="color:${color}">${d.mosPct.toFixed(1)}%</div><div class="gauge-sub">${d.multiple.toFixed(1)}× breakeven</div><div class="gauge-bar"><div class="gauge-fill" style="width:${barPct}%;background:${color}"></div></div></div>`;
+    }).join('');
+
+    // EBITDA Margin % line
+    new Chart(document.getElementById('chart-margin-line'),{type:'line',data:{labels:monthLabels,datasets:scenarios.map(s=>({label:s,data:getScenarioSeries(s,'EBITDA Margin %').map(v=>v*100),borderColor:sColors[s],borderWidth:s==='Base'?3:2,pointRadius:2,tension:.3,fill:false}))},options:cOpts({scales:{y:{ticks:{callback:v=>v.toFixed(0)+'%'}}}})});
+
+    // Spread chart (High - Low)
+    const spreadRev = months.map(m=>getMonthly('High',m,'Revenue (Net)')-getMonthly('Low',m,'Revenue (Net)'));
+    const spreadEbitda = months.map(m=>getMonthly('High',m,'EBITDA')-getMonthly('Low',m,'EBITDA'));
+    new Chart(document.getElementById('chart-spread'),{type:'bar',data:{labels:monthLabels,datasets:[
+        {label:'Revenue Spread',data:spreadRev,backgroundColor:'#60a5fa40',borderColor:'#60a5fa',borderWidth:1.5,borderRadius:4},
+        {label:'EBITDA Spread',data:spreadEbitda,backgroundColor:'#a78bfa40',borderColor:'#a78bfa',borderWidth:1.5,borderRadius:4}
+    ]},options:cOpts({plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{family:'DM Sans',size:10},usePointStyle:true,pointStyle:'rectRounded',padding:10}}},scales:{y:{ticks:{callback:v=>fmt(v)}}}})});
+}
+
+// ======================== PAGE 2: UNIT ECONOMICS & COSTS ========================
+function buildPage2(){
+    // Unit economics: Rev per ride vs VarCost per ride for all scenarios
+    const datasets = [];
+    scenarios.forEach(s=>{
+        const revPerRide = months.map(m=>getMonthly(s,m,'Revenue (Net)')/getMonthly(s,m,'Total Rides'));
+        const vcPerRide = months.map(m=>getMonthly(s,m,'Variable Costs')/getMonthly(s,m,'Total Rides'));
+        datasets.push({label:s+' Rev/Ride',data:revPerRide,borderColor:sColors[s],borderWidth:2.5,pointRadius:3,tension:.3,fill:false});
+        datasets.push({label:s+' VarCost/Ride',data:vcPerRide,borderColor:sColors[s],borderWidth:1.5,borderDash:[5,3],pointRadius:2,tension:.3,fill:false});
+    });
+    new Chart(document.getElementById('chart-unit-econ'),{type:'line',data:{labels:monthLabels,datasets},options:cOpts({plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{family:'DM Sans',size:10},usePointStyle:true,pointStyle:'rectRounded',padding:8}}},scales:{y:{ticks:{callback:v=>'€'+v.toFixed(1)}}}})});
+
+    // Cost vs Revenue growth rate
+    const overtakeDS = [];
+    scenarios.forEach(s=>{
+        const revGrowth = months.slice(1).map((m,i)=>{
+            const prev = getMonthly(s,m-1,'Revenue (Net)');
+            const curr = getMonthly(s,m,'Revenue (Net)');
+            return ((curr-prev)/prev)*100;
+        });
+        const costGrowth = months.slice(1).map((m,i)=>{
+            const prevC = getMonthly(s,m-1,'Variable Costs')+getMonthly(s,m-1,'Total Fixed Costs');
+            const currC = getMonthly(s,m,'Variable Costs')+getMonthly(s,m,'Total Fixed Costs');
+            return ((currC-prevC)/prevC)*100;
+        });
+        overtakeDS.push({label:s+' Revenue',data:revGrowth,borderColor:sColors[s],borderWidth:2.5,pointRadius:3,tension:.3,fill:false});
+        overtakeDS.push({label:s+' Cost',data:costGrowth,borderColor:sColors[s],borderWidth:1.5,borderDash:[5,3],pointRadius:2,tension:.3,fill:false});
+    });
+    new Chart(document.getElementById('chart-overtake'),{type:'line',data:{labels:monthLabels.slice(1),datasets:overtakeDS},options:cOpts({plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{family:'DM Sans',size:10},usePointStyle:true,pointStyle:'rectRounded',padding:8}}},scales:{y:{ticks:{callback:v=>v.toFixed(1)+'%'}}}})});
+
+    // Revenue decomposition (Base only)
+    const volEffect=[], priceEffect=[], mixEffect=[];
+    for(let m=2;m<=12;m++){
+        const rides=getMonthly('Base',m,'Total Rides'), prevRides=getMonthly('Base',m-1,'Total Rides');
+        const rev=getMonthly('Base',m,'Revenue (Net)'), prevRev=getMonthly('Base',m-1,'Revenue (Net)');
+        const rpr=rev/rides, prevRpr=prevRev/prevRides;
+        volEffect.push((rides-prevRides)*prevRpr);
+        priceEffect.push((rpr-prevRpr)*prevRides);
+        mixEffect.push((rides-prevRides)*(rpr-prevRpr));
+    }
+    new Chart(document.getElementById('chart-decomp'),{type:'bar',data:{labels:monthLabels.slice(1),datasets:[
+        {label:'Volume Effect',data:volEffect,backgroundColor:'#60a5fa90',borderRadius:3},
+        {label:'Price Effect',data:priceEffect,backgroundColor:'#34d39990',borderRadius:3},
+        {label:'Mix Effect',data:mixEffect,backgroundColor:'#fbbf2490',borderRadius:3}
+    ]},options:cOpts({plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{family:'DM Sans',size:10},usePointStyle:true,pointStyle:'rectRounded',padding:10}}},scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>fmt(v)}}}})});
+
+    // DOL chart (capped for readability)
+    const dolDS = scenarios.map(s=>{
+        const dol = months.map(m=>{
+            const cm = getMonthly(s,m,'Contribution Margin');
+            const ebitda = getMonthly(s,m,'EBITDA');
+            if(Math.abs(ebitda)<1000) return null;
+            const val = cm/ebitda;
+            return Math.max(-10,Math.min(30,val));
+        });
+        return {label:s,data:dol,borderColor:sColors[s],borderWidth:s==='Low'?3:2,pointRadius:3,tension:.3,fill:false,spanGaps:true};
+    });
+    new Chart(document.getElementById('chart-dol'),{type:'line',data:{labels:monthLabels,datasets:dolDS},options:cOpts({plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{family:'DM Sans',size:11},usePointStyle:true,pointStyle:'rectRounded',padding:12}}},scales:{y:{min:-10,max:30,ticks:{callback:v=>v.toFixed(0)+'×'}}}})});
+}
+
+// ======================== PAGE 3: SENSITIVITY & LEVERS ========================
+function buildPage3(){
+    // Heatmap: EBITDA Margin sensitivity (price × util)
+    const prices = [0.21,0.25,0.29,0.33,0.37];
+    const utils = [0.50,0.575,0.65,0.725,0.80];
+    const marginData = {};
+    DATA.sens_price_util.filter(d=>d.Output==='FY_EBITDA_Margin').forEach(d=>{marginData[d.Price+'_'+d.Util]=d.Value});
+    
+    const cols = utils.length+1;
+    let html = `<div class="heatmap-grid" style="grid-template-columns:80px repeat(${utils.length},1fr)">`;
+    html += `<div class="heatmap-header"></div>`;
+    utils.forEach(u=>html+=`<div class="heatmap-header">${(u*100).toFixed(1)}%</div>`);
+    prices.forEach(p=>{
+        html+=`<div class="heatmap-row-header">€${p.toFixed(2)}/min</div>`;
+        utils.forEach(u=>{
+            const v = marginData[p+'_'+u] || 0;
+            const pct = v*100;
+            const isBase = p===0.29 && u===0.65;
+            const intensity = Math.max(0,Math.min(1,(pct-45)/(75-45)));
+            const r = Math.round(248 - intensity*200);
+            const g = Math.round(113 + intensity*100);
+            const b = Math.round(113 - intensity*40);
+            const border = isBase ? 'border:2px solid #fbbf24;' : '';
+            html+=`<div class="heatmap-cell" style="background:rgba(${r},${g},${b},0.3);color:rgb(${r},${g},${b});${border}">${pct.toFixed(1)}%</div>`;
+        });
+    });
+    html+='</div>';
+    document.getElementById('heatmap-container').innerHTML = html;
+
+    // Marginal impact rankings
+    const marginRanks = [
+        {lever:'Price Growth',value:1.8475,color:'var(--yellow)'},
+        {lever:'Price Per Min',value:1.1169,color:'var(--orange)'},
+        {lever:'Util Rate',value:0.1558,color:'var(--cyan)'},
+        {lever:'Fleet Growth',value:0.0725,color:'var(--purple)'}
+    ];
+    const maxMargin = marginRanks[0].value;
+    document.getElementById('rank-margin').innerHTML = marginRanks.map(r=>{
+        const w = (r.value/maxMargin*100).toFixed(0);
+        return `<div class="rank-bar-wrap"><div class="rank-label"><span>${r.lever}</span><span style="font-family:'JetBrains Mono';font-size:11px">${r.value.toFixed(4)} pp/unit</span></div><div class="rank-bar-bg"><div class="rank-bar" style="width:${w}%;background:${r.color}"></div></div></div>`;
+    }).join('');
+
+    const revRanks = [
+        {lever:'Fleet Growth',value:290937942,color:'var(--purple)'},
+        {lever:'Price Growth',value:258185625,color:'var(--yellow)'},
+        {lever:'Price Per Min',value:150569569,color:'var(--orange)'},
+        {lever:'Util Rate',value:77105160,color:'var(--cyan)'}
+    ];
+    const maxRev = revRanks[0].value;
+    document.getElementById('rank-revenue').innerHTML = revRanks.map(r=>{
+        const w = (r.value/maxRev*100).toFixed(0);
+        return `<div class="rank-bar-wrap"><div class="rank-label"><span>${r.lever}</span><span style="font-family:'JetBrains Mono';font-size:11px">€${(r.value/1e6).toFixed(0)}M/unit</span></div><div class="rank-bar-bg"><div class="rank-bar" style="width:${w}%;background:${r.color}"></div></div></div>`;
+    }).join('');
+
+    // Interaction effects bubble chart
+    const interactionData = [];
+    const fleetTiers = [0.015,0.03,0.045,0.06];
+    const priceTiers = [0.005,0.01,0.015,0.02];
+    const origin = DATA.sens_growth.find(d=>d.Output==='FY_Net_Revenue'&&d.Fleet===0&&d.PriceGr===0).Value;
+    fleetTiers.forEach(f=>{
+        priceTiers.forEach(p=>{
+            const actual = DATA.sens_growth.find(d=>d.Output==='FY_Net_Revenue'&&d.Fleet===f&&d.PriceGr===p);
+            const fleetOnly = DATA.sens_growth.find(d=>d.Output==='FY_Net_Revenue'&&d.Fleet===f&&d.PriceGr===0);
+            const priceOnly = DATA.sens_growth.find(d=>d.Output==='FY_Net_Revenue'&&d.Fleet===0&&d.PriceGr===p);
+            if(actual&&fleetOnly&&priceOnly){
+                const additive = fleetOnly.Value + priceOnly.Value - origin;
+                const interaction = actual.Value - additive;
+                interactionData.push({x:f*100,y:p*100,r:Math.max(3,Math.sqrt(Math.abs(interaction)/5000)),interaction});
+            }
+        });
+    });
+    new Chart(document.getElementById('chart-interaction'),{type:'bubble',data:{datasets:[{
+        data:interactionData.map(d=>({x:d.x,y:d.y,r:d.r})),
+        backgroundColor:interactionData.map(d=>d.interaction>0?'rgba(52,211,153,0.5)':'rgba(248,113,113,0.5)'),
+        borderColor:interactionData.map(d=>d.interaction>0?'#34d399':'#f87171'),
+        borderWidth:1.5
+    }]},options:cOpts({plugins:{tooltip:{callbacks:{label:function(ctx){const d=interactionData[ctx.dataIndex];return 'Interaction: €'+(d.interaction/1e3).toFixed(0)+'K'}}}},scales:{x:{title:{display:true,text:'Fleet Growth (%/mo)',color:'#94a3b8',font:{family:'DM Sans',size:11}}},y:{title:{display:true,text:'Price Growth (%/mo)',color:'#94a3b8',font:{family:'DM Sans',size:11}}}}})});
+
+    // Payback timeline
+    const cumData = {};
+    scenarios.forEach(s=>{
+        let cum = 0;
+        cumData[s] = months.map(m=>{cum += getMonthly(s,m,'EBITDA'); return cum;});
+    });
+    const fyFixed = {};
+    scenarios.forEach(s=>{fyFixed[s]=getFY(s,'Total Fixed Costs')});
+    new Chart(document.getElementById('chart-payback'),{type:'line',data:{labels:monthLabels,datasets:[
+        ...scenarios.map(s=>({label:s,data:cumData[s],borderColor:sColors[s],borderWidth:s==='Base'?3:2,pointRadius:3,tension:.3,fill:false})),
+        ...scenarios.map(s=>({label:s+' FC Target',data:months.map(()=>fyFixed[s]),borderColor:sColors[s]+'60',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false}))
+    ]},options:cOpts({plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{family:'DM Sans',size:10},usePointStyle:true,pointStyle:'rectRounded',padding:8,filter:function(item){return !item.text.includes('FC Target')||item.text.includes('Base')}}}},scales:{y:{ticks:{callback:v=>fmt(v)}}}})});
+}
+
+// ======================== INIT ========================
+buildPage1();
+buildPage2();
+buildPage3();
+</script>
+</body>
+</html>
