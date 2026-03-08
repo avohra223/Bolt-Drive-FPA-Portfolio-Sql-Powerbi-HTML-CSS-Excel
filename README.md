@@ -2,7 +2,7 @@
 
 Driver-based financial model for a ride-hailing business (Bolt Drive). Built from scratch as an end-to-end FP&A analysis: Excel model, Python data pipeline, SQLite database, 15 advanced SQL queries, interactive HTML dashboard, and Power BI dashboard.
 
-**[View Interactive Dashboard](https://avohra223.github.io/Bolt-Drive-FPA-Portfolio/dashboard/)**
+**[View Interactive Dashboard]([https://avohra223.github.io/Bolt-Drive-FPA-Portfolio/dashboard/](https://avohra223.github.io/Bolt-Drive-FPA-Portfolio-Sql-Powerbi-HTML-CSS-Excel/dashboard/))**
 
 ---
 
@@ -132,7 +132,7 @@ Every query requires SQL capabilities that Excel cannot replicate: cross-scenari
 ## Dashboards
 
 ### Interactive HTML Dashboard
-**[View Live](https://avohra223.github.io/Bolt-Drive-FPA-Portfolio/dashboard/)**
+**[View Live]([https://avohra223.github.io/Bolt-Drive-FPA-Portfolio/dashboard/](https://avohra223.github.io/Bolt-Drive-FPA-Portfolio-Sql-Powerbi-HTML-CSS-Excel/dashboard/))**
 
 Built with HTML, CSS, JavaScript, and Chart.js. Three pages:
 
