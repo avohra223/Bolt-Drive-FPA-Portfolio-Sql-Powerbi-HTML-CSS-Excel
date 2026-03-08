@@ -132,8 +132,7 @@ Every query requires SQL capabilities that Excel cannot replicate: cross-scenari
 ## Dashboards
 
 ### Interactive HTML Dashboard
-**[View Live]([https://avohra223.github.io/Bolt-Drive-FPA-Portfolio/dashboard/](https://avohra223.github.io/Bolt-Drive-FPA-Portfolio-Sql-Powerbi-HTML-CSS-Excel/dashboard/))**
-
+**[View Interactive Dashboard](https://avohra223.github.io/Bolt-Drive-FPA-Portfolio-Sql-Powerbi-HTML-CSS-Excel/dashboard/)**
 Built with HTML, CSS, JavaScript, and Chart.js. Three pages:
 
 - **Scenario Command Centre:** Multi-scenario EBITDA trajectories, cumulative payback, margin of safety gauges, scenario spread
